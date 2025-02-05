@@ -79,9 +79,13 @@ func (g *Game) processMove(move Move) error {
 	}
 
 	actionProcessor := g.getProcessor(move)
+	if actionProcessor == nil {
+		return fmt.Errorf("invalid move action: %v", move)
+	}
+
 	err := actionProcessor(move)
 	if err != nil {
-		return err
+		return fmt.Errorf("error processing move: %v", err)
 	}
 
 	// Check if your king is in check
@@ -101,10 +105,10 @@ func (g *Game) processMove(move Move) error {
 
 func (g *Game) getProcessor(move Move) func(Move) error {
 	// Castling
-	if move.Action == KingCastling || move.Action == QueenCastling {
+	switch move.Action {
+	case KingCastling, QueenCastling:
 		return g.processCastling
 	}
-
 	// TODO Add other processors
 	return nil
 }
@@ -118,8 +122,7 @@ func (g *Game) processCastling(move Move) error {
 	}
 
 	kingRows := map[Side]int{Black: 7, White: 0}
-	king := Cell{'K', g.whoseTurn(), kingRows[g.whoseTurn()], 4}
-
+	king := Position{kingRows[g.whoseTurn()], 4}
 	rook := map[Action]Position{KingCastling: {col: 7, row: king.row}, QueenCastling: {col: 0, row: king.row}}[move.Action]
 
 	// Check that rook didn't move
@@ -148,7 +151,6 @@ func (g *Game) processCastling(move Move) error {
 	}
 
 	// Check if crossover squares are attacked
-
 	crossoverAttackers, _ := g.getAttackingCells(Position{row: king.row, col: king.col + rookDir}, getOpponent(g.whoseTurn()))
 	if len(crossoverAttackers) > 0 {
 		return fmt.Errorf("crossover cells attacked")
@@ -371,28 +373,30 @@ func (g *Game) canKingMove(side Side) bool {
 }
 
 func (g *Game) moveAndCheck(move Move, check Position) bool {
-	checked := false
-
 	advDir := map[Side]int{Black: -1, White: 1}[move.Source.side]
 	var epPawn Piece
 
-	g.Board[move.Source.row][move.Source.col] = move.Source.Piece
+	// Make move
+	g.Board[move.Target.row][move.Target.col] = move.Source.Piece
 	g.Board[move.Source.row][move.Source.col] = Empty
 	if move.Action == Enpassant {
 		epPawn = g.Board[move.Source.row+advDir][move.Source.col]
 		g.Board[move.Source.row+advDir][move.Source.col] = Empty
 	}
+
+	// Defer restoring of state
 	defer func() {
-		g.Board[move.Source.row][move.Source.col] = move.Target.Piece
+		g.Board[move.Target.row][move.Target.col] = move.Target.Piece
 		g.Board[move.Source.row][move.Source.col] = move.Source.Piece
 		if move.Action == Enpassant {
 			g.Board[move.Source.row+advDir][move.Source.col] = epPawn
 		}
 	}()
 
+	// Check for check
 	atkCells, _ := g.getAttackingCells(check, getOpponent(move.Source.side))
-	checked = len(atkCells) > 0
-	return checked
+
+	return len(atkCells) > 0
 }
 
 // Returns at most 2 cells that can attack the given cell
@@ -470,7 +474,7 @@ func (g *Game) getSourceCell(cell Position, side Side) (Position, bool) {
 	}
 
 	knights := g.getAttackingKnights(cell, side)
-Position	if len(knights) > 0 {
+	if len(knights) > 0 {
 		return knights[0], true
 	}
 
@@ -550,7 +554,7 @@ func (g *Game) getAttackingLines(cell Position, side Side) []Position {
 		}
 	}
 
-Position	// Lines
+	// Lines
 	isFullLineAttacker := func(p Piece) bool {
 		return p == Piece{'R', side} ||
 			p == Piece{'Q', side}
@@ -630,7 +634,7 @@ func isValidPosition(col, row int) bool {
 }
 
 func getOpponent(side Side) Side {
-	if side == WPosition{
+	if side == White {
 		return Black
 	}
 	return White
