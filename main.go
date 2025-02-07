@@ -8,12 +8,15 @@ func main() {
 	fmt.Println("Shahio 0.1")
 }
 
-type Side byte
-type Figure byte
-type Piece struct {
-	fig  Figure
-	side Side
-}
+type (
+	Side   byte
+	Figure byte
+	Piece  struct {
+		fig  Figure
+		side Side
+	}
+)
+
 type Position struct {
 	row int
 	col int
@@ -27,17 +30,19 @@ type Move struct {
 	Target Cell
 	Action Action
 }
-type Action string
-type Board [][]Piece
-type Game struct {
-	Board      Board
-	Moves      []Move
-	blackKing  Position
-	whiteKing  Position
-	blackCells int
-	whiteCells int
-	ended      bool
-}
+type (
+	Action string
+	Board  [][]Piece
+	Game   struct {
+		Board      Board
+		Moves      []Move
+		blackKing  Position
+		whiteKing  Position
+		blackCells int
+		whiteCells int
+		ended      bool
+	}
+)
 
 const (
 	White         = Side('w')
@@ -109,7 +114,7 @@ func (g *Game) getProcessor(move Move) func(Move) error {
 	case KingCastling, QueenCastling:
 		return g.processCastling
 	}
-	// TODO Add other processors
+	// TODO: Add other processors
 	return nil
 }
 
@@ -246,12 +251,12 @@ func (g *Game) checkStalemate() bool {
 		for col := range g.Board[row] {
 			if pic := g.Board[row][col]; pic != Empty &&
 				pic.side == opponent && pic.fig != 'K' && g.canMove(Position{row: row, col: col}) {
-				return true
+				return false
 			}
 		}
 	}
 
-	return false
+	return true
 }
 
 func (g *Game) canMove(cell Position) bool {
@@ -302,12 +307,24 @@ func (g *Game) canMove(cell Position) bool {
 		}
 	case 'Q', 'N':
 		knightDirs := [8][2]int{
-			{-2, -1}, {-2, 1}, {-1, -2}, {-1, 2},
-			{1, -2}, {1, 2}, {2, -1}, {2, 1},
+			{-2, -1},
+			{-2, 1},
+			{-1, -2},
+			{-1, 2},
+			{1, -2},
+			{1, 2},
+			{2, -1},
+			{2, 1},
 		}
 		queenDirs := [8][2]int{
-			{-1, 0}, {-1, 1}, {0, 1}, {1, 1},
-			{1, 0}, {1, -1}, {0, -1}, {-1, -1},
+			{-1, 0},
+			{-1, 1},
+			{0, 1},
+			{1, 1},
+			{1, 0},
+			{1, -1},
+			{0, -1},
+			{-1, -1},
 		}
 		dirs := knightDirs
 		if pic.fig == 'Q' {
@@ -351,8 +368,14 @@ func (g *Game) canKingMove(side Side) bool {
 	king := g.sideKing(side)
 
 	dirs := [8][2]int{
-		{-1, 0}, {-1, 1}, {0, 1}, {1, 1},
-		{1, 0}, {1, -1}, {0, -1}, {-1, -1},
+		{-1, 0},
+		{-1, 1},
+		{0, 1},
+		{1, 1},
+		{1, 0},
+		{1, -1},
+		{0, -1},
+		{-1, -1},
 	}
 	for _, dir := range dirs {
 		if col, row := king.col+dir[0], king.row+dir[1]; isValidPosition(col, row) {
@@ -584,8 +607,14 @@ func (g *Game) getAttackingKnights(cell Position, side Side) []Position {
 	res := []Position{}
 
 	knightMoves := [8][2]int{
-		{-2, -1}, {-2, 1}, {-1, -2}, {-1, 2},
-		{1, -2}, {1, 2}, {2, -1}, {2, 1},
+		{-2, -1},
+		{-2, 1},
+		{-1, -2},
+		{-1, 2},
+		{1, -2},
+		{1, 2},
+		{2, -1},
+		{2, 1},
 	}
 	for _, move := range knightMoves {
 		col, row := cell.col+move[0], cell.row+move[1]
@@ -602,8 +631,14 @@ func (g *Game) getAttackingKnights(cell Position, side Side) []Position {
 
 func (g *Game) getAttackingKing(cell Position, side Side) (Position, bool) {
 	kingMoves := [8][2]int{
-		{-1, 0}, {-1, 1}, {0, 1}, {1, 1},
-		{1, 0}, {1, -1}, {0, -1}, {-1, -1},
+		{-1, 0},
+		{-1, 1},
+		{0, 1},
+		{1, 1},
+		{1, 0},
+		{1, -1},
+		{0, -1},
+		{-1, -1},
 	}
 	for _, dir := range kingMoves {
 		col, row := cell.col+dir[0], cell.row+dir[1]
