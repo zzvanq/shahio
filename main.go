@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 )
 
 func main() {
@@ -100,7 +101,7 @@ func (g *Game) processMove(move Move) error {
 	}
 
 	// Check if enemy king is in checkmate
-	if g.checkGameEnded() {
+	if g.checkGameStatus() {
 		g.ended = true
 		return nil
 	}
@@ -109,12 +110,13 @@ func (g *Game) processMove(move Move) error {
 }
 
 func (g *Game) getProcessor(move Move) func(Move) error {
-	// Castling
 	switch move.Action {
 	case KingCastling, QueenCastling:
 		return g.processCastling
+	case Movement, Capture, Promotion, Enpassant:
+		return g.processMove
 	}
-	// TODO: Add other processors
+	// TODO: Separate funcs
 	return nil
 }
 
@@ -184,7 +186,62 @@ func (g *Game) processCastling(move Move) error {
 	return nil
 }
 
-func (g *Game) checkGameEnded() bool {
+func (g *Game) processMovement(move Move) error {
+	if move.Action != Movement {
+		return fmt.Errorf("incorrect action")
+	}
+
+	if move.Target.side == g.whoseTurn() {
+		return fmt.Errorf("cell is occupied")
+	}
+
+	dirs := map[Figure][][2]int{}[move.Source.fig]
+
+	var dir [2]int
+	switch move.Source.fig {
+	case 'Q', 'B', 'R':
+		drow, dcol := 0, 0
+
+		if move.Target.row > move.Source.row {
+			drow = 1
+		} else if move.Target.row < move.Source.row {
+			drow = -1
+		}
+
+		if move.Target.col > move.Source.col {
+			dcol = 1
+		} else if move.Target.col < move.Source.col {
+			dcol = -1
+		}
+		dir = [2]int{drow, dcol}
+	default:
+		dir = [2]int{move.Target.row - move.Source.row, move.Target.col - move.Source.col}
+	}
+
+	if !slices.Contains(dirs, dir) {
+		return fmt.Errorf("invalid move")
+	}
+
+	// Check if line is blocked
+	switch move.Source.fig {
+	case 'Q', 'B', 'R':
+		for col, row := move.Source.row, move.Source.col; ; col, row = col+dir[1], row+dir[0] {
+			if !isValidPosition(col, row) {
+				break
+			}
+			if g.Board[row][col] != Empty {
+				return fmt.Errorf("move is blocked")
+			}
+		}
+	}
+
+	g.Board[move.Target.row][move.Target.col] = g.Board[move.Source.row][move.Source.col]
+	g.Board[move.Source.row][move.Source.col] = Empty
+
+	return nil
+}
+
+func (g *Game) checkGameStatus() bool {
 	if g.blackCells == 1 || g.whiteCells == 1 {
 		return true
 	}
