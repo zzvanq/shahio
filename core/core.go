@@ -57,10 +57,10 @@ const (
 )
 
 var (
-	PawnDirs   map[Side][][2]int = map[Side][][2]int{Black: {{0, -1}, {0, -2}}, White: {{0, 1}, {0, 2}}}
-	DiagDirs   [][2]int          = [][2]int{{-1, -1}, {1, -1}, {1, 1}, {-1, 1}}
-	LineDirs   [][2]int          = [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
-	KnightDirs [][2]int          = [][2]int{
+	PawnDirs   = map[Side][][2]int{Black: {{0, -1}, {0, -2}}, White: {{0, 1}, {0, 2}}}
+	DiagDirs   = [][2]int{{-1, -1}, {1, -1}, {1, 1}, {-1, 1}}
+	LineDirs   = [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
+	KnightDirs = [][2]int{
 		{-2, -1},
 		{-2, 1},
 		{-1, -2},
@@ -70,7 +70,7 @@ var (
 		{2, -1},
 		{2, 1},
 	}
-	KingDirs [][2]int = [][2]int{
+	KingDirs = [][2]int{
 		{-1, 0},
 		{-1, 1},
 		{0, 1},
@@ -80,13 +80,13 @@ var (
 		{0, -1},
 		{-1, -1},
 	}
-	PicDirs map[Figure][][2]int = map[Figure][][2]int{
+	PicDirs = map[Figure][][2]int{
 		'B': DiagDirs, 'R': LineDirs,
 		'Q': append(DiagDirs, LineDirs...), 'N': KnightDirs,
 		'K': KingDirs,
 	}
-	PawnAtkDirs map[Side][][2]int = map[Side][][2]int{Black: {{-1, -1}, {1, -1}}, White: {{-1, 1}, {1, 1}}}
-	AdvDirs     map[Side]int      = map[Side]int{Black: -1, White: 1}
+	PawnAtkDirs = map[Side][][2]int{Black: {{-1, -1}, {1, -1}}, White: {{-1, 1}, {1, 1}}}
+	AdvDirs     = map[Side]int{Black: -1, White: 1}
 	Empty       Piece
 )
 
@@ -195,7 +195,7 @@ func (g *Game) processCastling(move Move) error {
 
 	// Check if king is in check
 	kingAttackers, _ := g.getAttackingCells(Position{row: king.row, col: king.col}, getOpponent(g.whoseTurn()))
-	fmt.Println(kingAttackers)
+
 	if len(kingAttackers) > 0 {
 		return fmt.Errorf("king is in check")
 	}
@@ -218,45 +218,28 @@ func (g *Game) processCastling(move Move) error {
 }
 
 func (g *Game) processMovement(move Move) error {
-	if move.Action != Movement {
-		return fmt.Errorf("incorrect action")
-	}
-
 	if move.Target.side == g.whoseTurn() {
 		return fmt.Errorf("cell is occupied")
-	}
-
-	var dir [2]int
-	switch move.Source.fig {
-	case 'Q', 'B', 'R':
-		drow, dcol := 0, 0
-
-		if move.Target.row > move.Source.row {
-			drow = 1
-		} else if move.Target.row < move.Source.row {
-			drow = -1
-		}
-
-		if move.Target.col > move.Source.col {
-			dcol = 1
-		} else if move.Target.col < move.Source.col {
-			dcol = -1
-		}
-		dir = [2]int{drow, dcol}
-	default:
-		dir = [2]int{move.Target.row - move.Source.row, move.Target.col - move.Source.col}
-	}
-
-	dirs := append(PicDirs[move.Source.fig], PawnDirs[move.Source.side]...)
-	if !slices.Contains(dirs, dir) {
-		return fmt.Errorf("invalid move")
 	}
 
 	// Check if line is blocked
 	switch move.Source.fig {
 	case 'Q', 'B', 'R', 'P':
+		stepRow, stepCol := 0, 0
+		if move.Target.row > move.Source.row {
+			stepRow = 1
+		} else if move.Target.row < move.Source.row {
+			stepRow = -1
+		}
+
+		if move.Target.col > move.Source.col {
+			stepCol = 1
+		} else if move.Target.col < move.Source.col {
+			stepCol = -1
+		}
+
 		for col, row := move.Source.col, move.Source.row; ; {
-			col, row = col+dir[0], row+dir[1]
+			col, row = col+stepCol, row+stepRow
 			if !isValidPosition(col, row) ||
 				(move.Target.row == row && move.Target.col == col) {
 				break
@@ -265,6 +248,10 @@ func (g *Game) processMovement(move Move) error {
 				return fmt.Errorf("move is blocked")
 			}
 		}
+	}
+
+	if err := checkMoveDir(move); err != nil {
+		return err
 	}
 
 	g.moveCell(move.Source, move.Target)
@@ -556,7 +543,7 @@ func (g *Game) getAttackingCells(cell Position, side Side) ([]Position, bool) {
 	// Pawn attacks
 	pawn := Piece{'P', side}
 	for _, dir := range PawnAtkDirs[side] {
-		col, row := cell.col+dir[0], cell.row+dir[1]
+		col, row := cell.col-dir[0], cell.row-dir[1]
 
 		if isValidPosition(col, row) && g.Board[row][col] == pawn {
 			res = append(res, Position{row: row, col: col})
@@ -740,11 +727,13 @@ func (g *Game) moveCell(source, target Cell) {
 	g.Board[target.row][target.col] = g.Board[source.row][source.col]
 	g.Board[source.row][source.col] = Empty
 
-	switch getOpponent(source.side) {
-	case Black:
-		g.blackCells -= 1
-	case White:
-		g.whiteCells -= 1
+	if target.Piece != Empty {
+		switch getOpponent(source.side) {
+		case Black:
+			g.blackCells--
+		case White:
+			g.whiteCells--
+		}
 	}
 
 	if source.fig == 'K' {
@@ -762,9 +751,9 @@ func (g *Game) cancelMoveCell(source, target Cell) {
 
 	switch getOpponent(source.side) {
 	case Black:
-		g.blackCells += 1
+		g.blackCells++
 	case White:
-		g.whiteCells += 1
+		g.whiteCells++
 	}
 
 	if source.fig == 'K' {
@@ -788,6 +777,36 @@ func (g *Game) whoseTurn() Side {
 		return White
 	}
 	return Black
+}
+
+func checkMoveDir(move Move) error {
+	var dir [2]int
+	switch move.Source.fig {
+	case 'Q', 'B', 'R':
+		drow, dcol := 0, 0
+
+		if move.Target.row > move.Source.row {
+			drow = 1
+		} else if move.Target.row < move.Source.row {
+			drow = -1
+		}
+
+		if move.Target.col > move.Source.col {
+			dcol = 1
+		} else if move.Target.col < move.Source.col {
+			dcol = -1
+		}
+		dir = [2]int{dcol, drow}
+	default:
+		dir = [2]int{move.Target.col - move.Source.col, move.Target.row - move.Source.row}
+	}
+
+	dirs := append(PicDirs[move.Source.fig], PawnDirs[move.Source.side]...)
+	if !slices.Contains(dirs, dir) {
+		return fmt.Errorf("invalid move")
+	}
+
+	return nil
 }
 
 func isValidPosition(col, row int) bool {

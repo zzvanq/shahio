@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestProcessCastlingQueenCastling(t *testing.T) {
+func TestProcessCastling_QueenCastling(t *testing.T) {
 	game := NewGame()
 	// Empty between
 	game.Board[0][3], game.Board[0][2], game.Board[0][1] = Empty, Empty, Empty
@@ -20,7 +20,7 @@ func TestProcessCastlingQueenCastling(t *testing.T) {
 	}
 }
 
-func TestProcessCastlingKingCastling(t *testing.T) {
+func TestProcessCastling_KingCastling(t *testing.T) {
 	game := NewGame()
 	// Empty between
 	game.Board[0][5], game.Board[0][6] = Empty, Empty
@@ -36,7 +36,7 @@ func TestProcessCastlingKingCastling(t *testing.T) {
 	}
 }
 
-func TestProcessCastlingPiecesBetween(t *testing.T) {
+func TestProcessCastling_PiecesBetween(t *testing.T) {
 	game := NewGame()
 
 	move := Move{Action: KingCastling}
@@ -47,7 +47,7 @@ func TestProcessCastlingPiecesBetween(t *testing.T) {
 	}
 }
 
-func TestProcessCastlingKingNotInPosition(t *testing.T) {
+func TestProcessCastling_KingNotInPosition(t *testing.T) {
 	game := NewGame()
 
 	move := Move{Action: KingCastling}
@@ -64,7 +64,7 @@ func TestProcessCastlingKingNotInPosition(t *testing.T) {
 	}
 }
 
-func TestProcessCastlingRookNotInPositionWasMoved(t *testing.T) {
+func TestProcessCastling_RookNotInPositionWasMoved(t *testing.T) {
 	game := NewGame()
 
 	move := Move{Action: KingCastling}
@@ -84,7 +84,7 @@ func TestProcessCastlingRookNotInPositionWasMoved(t *testing.T) {
 	}
 }
 
-func TestProcessCastlingRookNotInPositionWasCaptured(t *testing.T) {
+func TestProcessCastling_RookNotInPositionWasCaptured(t *testing.T) {
 	game := NewGame()
 
 	move := Move{Action: KingCastling}
@@ -104,7 +104,7 @@ func TestProcessCastlingRookNotInPositionWasCaptured(t *testing.T) {
 	}
 }
 
-func TestProcessCastlingCrossoverCellsAttacked(t *testing.T) {
+func TestProcessCastling_CrossoverCellsAttacked(t *testing.T) {
 	game := NewGame()
 	// Empty between
 	game.Board[0][5], game.Board[0][6] = Empty, Empty
@@ -120,7 +120,7 @@ func TestProcessCastlingCrossoverCellsAttacked(t *testing.T) {
 	}
 }
 
-func TestProcessCastlingKingIsInCheck(t *testing.T) {
+func TestProcessCastling_KingIsInCheck(t *testing.T) {
 	game := NewGame()
 	// Empty between
 	game.Board[0][5], game.Board[0][6] = Empty, Empty
