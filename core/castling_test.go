@@ -16,7 +16,7 @@ func TestProcessCastling_QueenCastling(t *testing.T) {
 
 	king, rook := game.Board[0][2], game.Board[0][3]
 	if king.fig != 'K' || rook.fig != 'R' {
-		t.Fatal("incorrect castling")
+		t.Fatalf("incorrect castling")
 	}
 }
 
@@ -32,7 +32,7 @@ func TestProcessCastling_KingCastling(t *testing.T) {
 
 	king, rook := game.Board[0][6], game.Board[0][5]
 	if king.fig != 'K' || rook.fig != 'R' {
-		t.Fatal("incorrect castling")
+		t.Fatalf("incorrect castling")
 	}
 }
 
@@ -41,9 +41,8 @@ func TestProcessCastling_PiecesBetween(t *testing.T) {
 
 	move := Move{Action: KingCastling}
 
-	expectedErr := "pieces between king and rook"
-	if err := game.processCastling(move); err.Error() != expectedErr {
-		t.Fatalf("Expected '%s', got '%v'", expectedErr, err)
+	if err := game.processCastling(move); err.Error() != "pieces between king and rook" {
+		t.Fatal(err)
 	}
 }
 
@@ -58,9 +57,8 @@ func TestProcessCastling_KingNotInPosition(t *testing.T) {
 		},
 	}
 	game.Moves = append(game.Moves, kingMove)
-	expectedErr := "king not in position"
-	if err := game.processCastling(move); err.Error() != expectedErr {
-		t.Fatalf("Expected '%s', got '%v'", expectedErr, err)
+	if err := game.processCastling(move); err.Error() != "king not in position" {
+		t.Fatal(err)
 	}
 }
 
@@ -78,9 +76,8 @@ func TestProcessCastling_RookNotInPositionWasMoved(t *testing.T) {
 			Action: Movement,
 		},
 	}
-	expectedErr := "rook not in position"
-	if err := game.processCastling(move); err.Error() != expectedErr {
-		t.Fatalf("Expected '%s', got '%v'", expectedErr, err)
+	if err := game.processCastling(move); err.Error() != "rook not in position" {
+		t.Fatal(err)
 	}
 }
 
@@ -98,9 +95,8 @@ func TestProcessCastling_RookNotInPositionWasCaptured(t *testing.T) {
 			Action: Capture,
 		},
 	}
-	expectedErr := "rook not in position"
-	if err := game.processCastling(move); err.Error() != expectedErr {
-		t.Fatalf("Expected '%s', got '%v'", expectedErr, err)
+	if err := game.processCastling(move); err.Error() != "rook not in position" {
+		t.Fatal(err)
 	}
 }
 
@@ -114,9 +110,8 @@ func TestProcessCastling_CrossoverCellsAttacked(t *testing.T) {
 	move := Move{
 		Action: KingCastling,
 	}
-	expectedErr := "crossover cell attacked"
-	if err := game.processCastling(move); err.Error() != expectedErr {
-		t.Fatalf("Expected '%s', got '%v'", expectedErr, err)
+	if err := game.processCastling(move); err.Error() != "crossover cell attacked" {
+		t.Fatal(err)
 	}
 }
 
@@ -130,8 +125,7 @@ func TestProcessCastling_KingIsInCheck(t *testing.T) {
 	move := Move{
 		Action: KingCastling,
 	}
-	expectedErr := "king is in check"
-	if err := game.processCastling(move); err.Error() != expectedErr {
-		t.Fatalf("Expected '%s', got '%v'", expectedErr, err)
+	if err := game.processCastling(move); err.Error() != "king is in check" {
+		t.Fatal(err)
 	}
 }

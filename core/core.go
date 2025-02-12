@@ -133,6 +133,8 @@ func (g *Game) processMove(move Move) error {
 
 	g.ended = g.checkGameStatus()
 
+	g.Moves = append(g.Moves, move)
+
 	return nil
 }
 
@@ -268,13 +270,13 @@ func (g *Game) processCapture(move Move) error {
 		return fmt.Errorf("cell is occupied")
 	}
 
-	if move.Source.fig != Figure('P') {
+	if move.Source.fig != 'P' {
 		return g.processMovement(move)
 	}
 
 	dir := [2]int{move.Target.col - move.Source.col, move.Target.row - move.Source.row}
 	if !slices.Contains(PawnAtkDirs[g.whoseTurn()], dir) {
-		return fmt.Errorf("invalid move")
+		return fmt.Errorf("invalid attack")
 	}
 
 	g.moveCell(move.Source, move.Target)
@@ -283,7 +285,7 @@ func (g *Game) processCapture(move Move) error {
 }
 
 func (g *Game) processEnpassant(move Move) error {
-	if move.Target.Piece != Empty {
+	if g.Board[move.Target.row][move.Target.col] != Empty {
 		return fmt.Errorf("cell is not empty")
 	}
 
@@ -532,7 +534,7 @@ func (g *Game) moveAndCheck(move Move, check Position) bool {
 // Returns at most 2 cells that can attack the given cell
 // bool return parameter indicates if the attack can be blocked
 func (g *Game) getAttackingCells(cell Position, side Side) ([]Position, bool) {
-	res := []Position{}
+	res := make([]Position, 0, 2)
 
 	res = append(res, g.getAttackingLines(cell, side)...)
 	if len(res) == 2 {
@@ -657,20 +659,22 @@ func (g *Game) getSourceCell(cell Position, side Side) (Position, bool) {
 }
 
 func (g *Game) getAttackingLines(cell Position, side Side) []Position {
-	res := []Position{}
+	res := make([]Position, 0, 2)
 
 	checkDirections := func(dirs [][2]int, isAttacker func(Piece) bool) {
 		for _, dir := range dirs {
 			col, row := cell.col+dir[0], cell.row+dir[1]
 			for ; isValidPosition(col, row); col, row = col+dir[0], row+dir[1] {
-				if p := g.Board[row][col]; p != Empty {
-					if isAttacker(p) {
-						res = append(res, Position{row: row, col: col})
-						if len(res) == 2 {
-							return
-						}
-					}
+				p := g.Board[row][col]
+				// Dir is blocked
+				if p != Empty && p.side == getOpponent(side) {
 					break
+				}
+				if isAttacker(p) {
+					res = append(res, Position{row: row, col: col})
+					if len(res) == 2 {
+						return
+					}
 				}
 			}
 		}
@@ -697,7 +701,7 @@ func (g *Game) getAttackingLines(cell Position, side Side) []Position {
 }
 
 func (g *Game) getAttackingKnights(cell Position, side Side) []Position {
-	res := []Position{}
+	res := make([]Position, 0, 2)
 
 	for _, move := range PicDirs['N'] {
 		col, row := cell.col+move[0], cell.row+move[1]
@@ -713,8 +717,8 @@ func (g *Game) getAttackingKnights(cell Position, side Side) []Position {
 }
 
 func (g *Game) getAttackingKing(cell Position, side Side) (Position, bool) {
-	for _, dir := range PicDirs['K'] {
-		col, row := cell.col+dir[0], cell.row+dir[1]
+	for _, move := range PicDirs['K'] {
+		col, row := cell.col+move[0], cell.row+move[1]
 		if isValidPosition(col, row) && g.Board[row][col] == (Piece{'K', side}) {
 			return Position{row: row, col: col}, true
 		}
