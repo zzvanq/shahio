@@ -51,11 +51,7 @@ func TestProcessCastling_KingNotInPosition(t *testing.T) {
 
 	move := Move{Action: KingCastling}
 
-	kingMove := Move{
-		Source: Cell{
-			Piece: Piece{'K', Black},
-		},
-	}
+	kingMove := Move{Source: Cell{Piece: Piece{'K', Black}}}
 	game.Moves = append(game.Moves, kingMove)
 	if err := game.processCastling(move); err.Error() != "king not in position" {
 		t.Fatal(err)
@@ -69,10 +65,7 @@ func TestProcessCastling_RookNotInPositionWasMoved(t *testing.T) {
 
 	game.Moves = []Move{
 		{
-			Source: Cell{
-				Piece:    Piece{'R', Black},
-				Position: Position{row: 7, col: 7},
-			},
+			Source: Cell{Piece: Piece{'R', Black}, Position: Position{row: 7, col: 7}},
 			Action: Movement,
 		},
 	}
@@ -88,10 +81,7 @@ func TestProcessCastling_RookNotInPositionWasCaptured(t *testing.T) {
 
 	game.Moves = []Move{
 		{
-			Target: Cell{
-				Piece:    Piece{'R', Black},
-				Position: Position{row: 7, col: 7},
-			},
+			Target: Cell{Piece: Piece{'R', Black}, Position: Position{row: 7, col: 7}},
 			Action: Capture,
 		},
 	}
@@ -107,9 +97,7 @@ func TestProcessCastling_CrossoverCellsAttacked(t *testing.T) {
 	// 1 cell below crossover cell
 	game.Board[1][5] = Piece{'R', Black}
 
-	move := Move{
-		Action: KingCastling,
-	}
+	move := Move{Action: KingCastling}
 	if err := game.processCastling(move); err.Error() != "crossover cell attacked" {
 		t.Fatal(err)
 	}
@@ -122,9 +110,7 @@ func TestProcessCastling_KingIsInCheck(t *testing.T) {
 	// 1 cell below king
 	game.Board[1][4] = Piece{'R', Black}
 
-	move := Move{
-		Action: KingCastling,
-	}
+	move := Move{Action: KingCastling}
 	if err := game.processCastling(move); err.Error() != "king is in check" {
 		t.Fatal(err)
 	}

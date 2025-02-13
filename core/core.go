@@ -10,9 +10,10 @@ func main() {
 }
 
 type (
-	Side   byte
-	Figure byte
-	Piece  struct {
+	Outcome uint8
+	Side    byte
+	Figure  byte
+	Piece   struct {
 		fig  Figure
 		side Side
 	}
@@ -41,7 +42,7 @@ type (
 		whiteKing  Position
 		blackCells int
 		whiteCells int
-		ended      bool
+		outcome    Outcome
 	}
 )
 
@@ -54,6 +55,11 @@ const (
 	Movement      = Action(" ")
 	Promotion     = Action("=")
 	Enpassant     = Action("e.p.")
+)
+const (
+	Checkmate = iota
+	Stalemate
+	NoOutcome
 )
 
 var (
@@ -107,12 +113,12 @@ func NewGame() Game {
 		blackKing:  Position{row: 7, col: 4},
 		blackCells: 16,
 		whiteCells: 16,
-		ended:      false,
+		outcome:    NoOutcome,
 	}
 }
 
 func (g *Game) processMove(move Move) error {
-	if g.ended {
+	if g.outcome != NoOutcome {
 		return fmt.Errorf("game has ended")
 	}
 
@@ -126,12 +132,12 @@ func (g *Game) processMove(move Move) error {
 		return err
 	}
 
-	kingAttackers, _ := g.getAttackingCells(g.sideKing(g.whoseTurn()), g.whoseTurn())
+	kingAttackers, _ := g.getAttackingCells(g.sideKing(g.whoseTurn()), getOpponent(g.whoseTurn()))
 	if len(kingAttackers) > 0 {
 		return fmt.Errorf("king is in check")
 	}
 
-	g.ended = g.checkGameStatus()
+	g.outcome = g.checkGameStatus()
 
 	g.Moves = append(g.Moves, move)
 
@@ -220,7 +226,9 @@ func (g *Game) processCastling(move Move) error {
 }
 
 func (g *Game) processMovement(move Move) error {
-	if move.Target.side == g.whoseTurn() {
+	target := g.Board[move.Target.row][move.Target.col]
+
+	if target.side == g.whoseTurn() {
 		return fmt.Errorf("cell is occupied")
 	}
 
@@ -242,12 +250,17 @@ func (g *Game) processMovement(move Move) error {
 
 		for col, row := move.Source.col, move.Source.row; ; {
 			col, row = col+stepCol, row+stepRow
-			if !isValidPosition(col, row) ||
-				(move.Target.row == row && move.Target.col == col) {
+			if !isValidPosition(col, row) {
 				break
 			}
+
 			if g.Board[row][col] != Empty {
 				return fmt.Errorf("move is blocked")
+			}
+
+			// Target position reached
+			if move.Target.row == row && move.Target.col == col {
+				break
 			}
 		}
 	}
@@ -262,11 +275,12 @@ func (g *Game) processMovement(move Move) error {
 }
 
 func (g *Game) processCapture(move Move) error {
-	if move.Target.Piece == Empty {
+	target := g.Board[move.Target.row][move.Target.col]
+	if target == Empty {
 		return fmt.Errorf("cell is empty")
 	}
 
-	if move.Target.side == g.whoseTurn() {
+	if target.side == g.whoseTurn() {
 		return fmt.Errorf("cell is occupied")
 	}
 
@@ -274,9 +288,8 @@ func (g *Game) processCapture(move Move) error {
 		return g.processMovement(move)
 	}
 
-	dir := [2]int{move.Target.col - move.Source.col, move.Target.row - move.Source.row}
-	if !slices.Contains(PawnAtkDirs[g.whoseTurn()], dir) {
-		return fmt.Errorf("invalid attack")
+	if err := checkAtkDir(move); err != nil {
+		return err
 	}
 
 	g.moveCell(move.Source, move.Target)
@@ -297,8 +310,8 @@ func (g *Game) processEnpassant(move Move) error {
 	epCapPic := g.Board[row][col]
 	if len(g.Moves) > 0 && epCapPic == (Piece{'P', getOpponent(g.whoseTurn())}) {
 		preEpMove := Move{
-			Source: Cell{Piece{'P', epCapPic.side}, Position{row, col}},
-			Target: Cell{Piece{'P', epCapPic.side}, Position{row + (AdvDirs[epCapPic.side] * 2), col}},
+			Source: Cell{Piece{'P', epCapPic.side}, Position{row - (AdvDirs[epCapPic.side] * 2), col}},
+			Target: Cell{Piece{'P', epCapPic.side}, Position{row, col}},
 			Action: Movement,
 		}
 		if prevMove := g.Moves[len(g.Moves)-1]; prevMove == preEpMove {
@@ -312,15 +325,15 @@ func (g *Game) processEnpassant(move Move) error {
 }
 
 func (g *Game) processPromotion(move Move) error {
-	if move.Source.fig != 'P' {
+	if move.Source.fig != 'P' || move.Target.side != move.Source.side {
 		return fmt.Errorf("invalid move")
 	}
 
 	var err error
-	if move.Target.col != move.Source.col {
-		err = g.processCapture(move)
-	} else {
+	if move.Target.col == move.Source.col {
 		err = g.processMovement(move)
+	} else {
+		err = g.processCapture(move)
 	}
 	if err != nil {
 		return err
@@ -331,34 +344,35 @@ func (g *Game) processPromotion(move Move) error {
 	return nil
 }
 
-func (g *Game) checkGameStatus() bool {
+func (g *Game) checkGameStatus() Outcome {
 	if g.blackCells == 1 || g.whiteCells == 1 {
-		return true
+		return Stalemate
 	}
 
 	side := getOpponent(g.whoseTurn())
 	king := g.sideKing(side)
 
+	// If king is not attacked, check for stalemate
 	atkCells, isBlockable := g.getAttackingCells(king, side)
-	if len(atkCells) == 0 {
-		return g.checkStalemate()
+	if len(atkCells) == 0 && g.checkStalemate() {
+		return Stalemate
 	}
 
-	// Check if king can run away
+	// Check if checked king can run away
 	if g.canKingMove(side) {
-		return false
+		return Checkmate
 	}
 
 	// Mate if attacked by 2 cells and can't run away
 	if len(atkCells) == 2 {
-		return true
+		return Checkmate
 	}
 
+	// Check if the attacking cell can be captured
 	atkCell := atkCells[0]
-	// Check if an attacking cell can be captured
 	captCells, _ := g.getAttackingCells(atkCell, side)
 	if len(captCells) > 0 {
-		return false
+		return NoOutcome
 	}
 
 	// Check if a blockable line of attack can be blocked
@@ -375,15 +389,15 @@ func (g *Game) checkGameStatus() bool {
 		dirCol := atkDir(king.col, atkCell.col)
 		dirRow := atkDir(king.row, atkCell.row)
 		for col, row := king.col+dirCol, king.row+dirRow; isValidPosition(col, row); {
-			blkCell, canBlock := g.getSourceCell(Position{row: row, col: col}, side)
-			if blkCell != king && canBlock {
-				return false
+			blockerCell, found := g.getSourceCell(Position{row: row, col: col}, side)
+			if found && blockerCell != king {
+				return NoOutcome
 			}
 			col, row = col+dirCol, row+dirRow
 		}
 	}
 
-	return true
+	return Checkmate
 }
 
 func (g *Game) checkStalemate() bool {
@@ -397,7 +411,7 @@ func (g *Game) checkStalemate() bool {
 	for row := starts[opponent]; row != starts[g.whoseTurn()]; row += dir {
 		for col := range g.Board[row] {
 			if pic := g.Board[row][col]; pic != Empty &&
-				pic.side == opponent && pic.fig != 'K' && g.canMove(Position{row: row, col: col}) {
+				pic.side == opponent && g.canMove(Position{row: row, col: col}) {
 				return false
 			}
 		}
@@ -781,6 +795,23 @@ func (g *Game) whoseTurn() Side {
 		return White
 	}
 	return Black
+}
+
+func checkAtkDir(move Move) error {
+	if move.Source.fig != 'P' {
+		err := checkMoveDir(move)
+		if err != nil {
+			return fmt.Errorf("invalid attack")
+		}
+		return err
+	}
+
+	atkDir := [2]int{move.Target.col - move.Source.col, move.Target.row - move.Source.row}
+	if !slices.Contains(PawnAtkDirs[move.Source.side], atkDir) {
+		return fmt.Errorf("invalid attack")
+	}
+
+	return nil
 }
 
 func checkMoveDir(move Move) error {
